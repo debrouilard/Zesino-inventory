@@ -1,0 +1,69 @@
+# Dependencies
+
+node_modules/
+**/node_modules/
+
+# Environment variables and secrets
+
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Build output
+
+dist/
+build/
+.next/
+out/
+coverage/
+
+# Logs
+
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Cursor
+
+.cursor/
+
+# VS Code
+
+.vscode/
+
+# Operating system files
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+
+# Local databases and backups
+
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+
+# Supabase local temporary files
+
+supabase/.temp/
+
+# Test artifacts
+
+playwright-report/
+test-results/
+
+# TypeScript
+
+*.tsbuildinfo

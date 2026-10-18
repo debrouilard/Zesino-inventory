@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum ProductOrigin {
+  IMPORTED
+  LOCAL
+}
+
+enum PurchaseType {
+  IMPORT
+  LOCAL
+}
+
+enum StockMovementType {
+  PURCHASE_RECEIPT
+  SALE
+  RETURN
+  ADJUSTMENT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  STOCK_CHANGE
+}
+
+enum SaleSource {
+  POS
+  MANUAL
+  SYNC
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  jobTitle     String   @default("Staff")
+  role         UserRole @default(STAFF)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  stockMovements StockMovement[]
+  auditLogs      AuditLog[]
+  sales          Sale[]          @relation("SaleCreatedBy")
+  purchases      Purchase[]      @relation("PurchaseCreatedBy")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  country   String?
+  address   String?
+  isLocal   Boolean  @default(false)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products      Product[]     @relation("PrimarySupplier")
+  importBatches ImportBatch[]
+  purchases     Purchase[]
+}
+
+model Product {
+  id                String        @id @default(cuid())
+  sku               String        @unique
+  name              String
+  description       String?
+  origin            ProductOrigin
+  categoryId        String
+  category          Category      @relation(fields: [categoryId], references: [id])
+  primarySupplierId String?
+  primarySupplier   Supplier?     @relation("PrimarySupplier", fields: [primarySupplierId], references: [id])
+  quantityOnHand    Int           @default(0)
+  lowStockThreshold Int           @default(10)
+  unitPrice         Decimal       @default(0)
+  costPrice         Decimal       @default(0)
+  active            Boolean       @default(true)
+  relatedProductId  String?
+  relatedProduct    Product?      @relation("ProductRelation", fields: [relatedProductId], references: [id])
+  relatedFrom       Product[]     @relation("ProductRelation")
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  stockMovements StockMovement[]
+  purchases      Purchase[]
+  sales          Sale[]
+}
+
+model ImportBatch {
+  id          String   @id @default(cuid())
+  batchNumber String   @unique
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  importDate  DateTime
+  customsDuty Decimal  @default(0)
+  vatRate     Decimal  @default(0.15)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  purchases Purchase[]
+}
+
+model Purchase {
+  id            String       @id @default(cuid())
+  purchaseType  PurchaseType
+  productId     String
+  product       Product      @relation(fields: [productId], references: [id])
+  supplierId    String
+  supplier      Supplier     @relation(fields: [supplierId], references: [id])
+  importBatchId String?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
+  quantity      Int
+  unitCost      Decimal
+  taxAmount     Decimal      @default(0)
+  totalAmount   Decimal
+  reference     String?
+  receivedAt    DateTime     @default(now())
+  createdById   String
+  createdBy     User         @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime     @default(now())
+
+  @@index([productId])
+  @@index([importBatchId])
+}
+
+model Sale {
+  id                String     @id @default(cuid())
+  transactionNumber String     @unique
+  source            SaleSource @default(POS)
+  productId         String
+  product           Product    @relation(fields: [productId], references: [id])
+  quantity          Int
+  unitPrice         Decimal
+  taxAmount         Decimal    @default(0)
+  totalAmount       Decimal
+  customerId        String?
+  customer          Customer?  @relation(fields: [customerId], references: [id])
+  customerName      String?
+  soldAt            DateTime   @default(now())
+  createdById       String
+  createdBy         User       @relation("SaleCreatedBy", fields: [createdById], references: [id])
+  createdAt         DateTime   @default(now())
+
+  @@index([productId])
+  @@index([soldAt])
+  @@index([source])
+}
+
+model StockMovement {
+  id            String            @id @default(cuid())
+  productId     String
+  product       Product           @relation(fields: [productId], references: [id])
+  movementType  StockMovementType
+  quantityDelta Int
+  balanceAfter  Int
+  referenceType String?
+  referenceId   String?
+  notes         String?
+  createdById   String
+  createdBy     User              @relation(fields: [createdById], references: [id])
+  createdAt     DateTime          @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  action     AuditAction
+  entityType String
+  entityId   String?
+  details    String?
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id])
+  createdAt  DateTime    @default(now())
+
+  @@index([createdAt])
+}
+
+model AppSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
